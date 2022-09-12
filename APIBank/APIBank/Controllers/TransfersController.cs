@@ -14,7 +14,7 @@
             _mapper = mapper;
         }
 
-        [HttpPost("Create")]
+        [HttpPost("TransferRequest")]
         public IActionResult Create(TransferRequest model)
         {
             _transferService.Create(model);
