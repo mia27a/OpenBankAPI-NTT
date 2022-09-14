@@ -5,10 +5,10 @@ namespace APIBank.Authorization
     [AttributeUsage(AttributeTargets.Class | AttributeTargets.Method)]
     public class AuthorizeAttribute : Attribute, IAuthorizationFilter
     {
-        public void OnAuthorization(AuthorizationFilterContext context)
+        public void OnAuthorization(AuthorizationFilterContext filterContext)
         {
-            // skip authorization if action is decorated with [AllowAnonymous] attribute
-            var allowAnonymous = context.ActionDescriptor.EndpointMetadata.OfType<AllowAnonymousAttribute>().Any();
+            // skip if AllowAnonymous attribute is used
+            var allowAnonymous = filterContext.ActionDescriptor.EndpointMetadata.OfType<AllowAnonymousAttribute>().Any();
             if (allowAnonymous)
             {
                 return;
@@ -16,10 +16,10 @@ namespace APIBank.Authorization
 
 
             // authorization
-            User user = (User)context.HttpContext.Items["User"];
+            User user = (User)filterContext.HttpContext.Items["User"];
             if (user == null)
             {
-                context.Result = new JsonResult(new { message = "Unauthorized" })
+                filterContext.Result = new JsonResult(new { message = "Unauthorized - User unable to perform this action." })
                 {
                     StatusCode = StatusCodes.Status401Unauthorized
                 };
@@ -28,6 +28,3 @@ namespace APIBank.Authorization
         }
     }
 }
-
-
-
