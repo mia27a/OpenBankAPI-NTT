@@ -1,5 +1,3 @@
-using APIBank.Models.Users.Requests;
-
 namespace APIBank.Helpers
 {
     public class AutoMapperProfile : Profile

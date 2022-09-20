@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Text.Json.Serialization;
 
 namespace APIBank.ModelEntities
 {
@@ -7,7 +8,7 @@ namespace APIBank.ModelEntities
         public User()
         {
             Accounts = new HashSet<Account>();
-            RefreshTokens = new HashSet<RefreshToken>();
+            RefreshTokenCollection = new List<RefreshToken>();
         }
 
         public int Id { get; set; }
@@ -18,6 +19,7 @@ namespace APIBank.ModelEntities
 
         public string Username { get; set; } = null!;
 
+        [JsonIgnore]
         public string PasswordHash { get; set; }
 
         public DateTime CreatedAt { get; set; }
@@ -26,6 +28,7 @@ namespace APIBank.ModelEntities
 
         public virtual ICollection<Account> Accounts { get; set; }
 
-        public virtual ICollection<RefreshToken> RefreshTokens { get; set; }
+        [JsonIgnore]
+        public virtual List<RefreshToken> RefreshTokenCollection { get; set; }
     }
 }

@@ -1,60 +1,66 @@
-﻿namespace APIBank.Services
+﻿using APIBank.ModelEntities;
+using APIBank.Services.Interfaces;
+
+namespace APIBank.Services
 {
     public class TransferService : ITransferService
     {
-        private postgresContext _context;
-        private readonly IMapper _mapper;
+        private readonly PostgresContext _context;
 
-        public TransferService(postgresContext context, IMapper mapper)
+        public TransferService(PostgresContext context)
         {
             _context = context;
-            _mapper = mapper;
         }
 
         public void Create(TransferRequest model)
         {
             using (var transaction = _context.Database.BeginTransaction())
             {
-                try
+                //Create Transfer and Save
+                var transfer = new Transfer()
                 {
-                    //Create Transfer and Save
-                    var transfer = new Transfer()
-                    {
-                        Amount = model.Amount,
-                        FromAccountId = model.FromAccountId,
-                        ToAccountId = model.ToAccountId
-                    };
+                    Amount = model.Amount,
+                    FromAccountId = model.FromAccountId,
+                    ToAccountId = model.ToAccountId
+                };
 
-                    _context.Transfers.Add(transfer);
-                    _context.SaveChanges();
+                _context.Transfers.Add(transfer);
+                _context.SaveChanges();
 
 
-                    // Create Transactions in each account and Save
-                    Transaction movementFrom = CreateTransaction(transfer.FromAccountId, -transfer.Amount, DateTime.Now);
-                    Transaction movementTo = CreateTransaction(transfer.ToAccountId, transfer.Amount, DateTime.Now);
+                // Create Movement in each account and Save
+                Transaction movementFrom = CreateTransaction(transfer.FromAccountId, -transfer.Amount, DateTime.Now);
+                Transaction movementTo = CreateTransaction(transfer.ToAccountId, transfer.Amount, DateTime.Now);
 
-                    _context.SaveChanges();
+                _context.SaveChanges();
 
+                //Update each Account Balance
+                var fromAccount = UpdateAccountBalance(movementFrom, transfer.Amount);
+                var toAccount = UpdateAccountBalance(movementTo, transfer.Amount);
 
-                    //Update Account Balance
-                    var accountFrom = UpdateAccountBalance(movementFrom);
-                    var accountTo = UpdateAccountBalance(movementTo);
+                if (fromAccount == toAccount)
+                    throw new AppException("You cannot transfer to the same account you are transfering from.");
+                if (fromAccount.Currency != toAccount.Currency)
+                    throw new AppException("You can only transfer to accounts using the same currency.");
 
-                    _context.SaveChanges();
+                _context.SaveChanges();
 
-
-                    // Commit transaction if all commands succeed, transaction will auto-rollback
-                    // when disposed if either commands fails
-                    transaction.Commit();
-
-                }
-                catch (Exception)
-                {
-                    //TODO
-                }
+                // Commit transaction if all commands succeed, transaction will auto-rollback when disposed if either commands fails
+                transaction.Commit();
             }
         }
 
+        public List<Transfer> GetAll()
+        {
+            if(_context.Transfers == null)
+            {
+                throw new KeyNotFoundException("Table 'Transfers' not found");
+            }
+
+            return _context.Transfers.ToList();
+        }
+
+        //Helper Methods
         private Transaction CreateTransaction(int AccountId, decimal Amount, DateTime CreatedAt)
         {
             var transaction = new Transaction()
@@ -69,26 +75,19 @@
             return transaction;
         }
 
-        private Account UpdateAccountBalance(Transaction movement)
+        private Account UpdateAccountBalance(Transaction movement, decimal amount)
         {
             var account = _context.Accounts.Find(movement.AccountId);
-            if (account != null)
-            {
-                account.Balance += movement.Amount;
-            }
+            if (account == null)            
+                throw new AppException("Account does not exist.");
+            if (account.Balance < amount)
+                throw new AppException("Insufficient amount in account to transfer from.");
+            
+            account.Balance += movement.Amount;            
             return account;
         }
 
-        public List<Transfer> GetAll()
-        {
-            if(_context.Transfers == null)
-            {
-                throw new KeyNotFoundException("Table 'Transfers' not found");
-            }
-
-            return _context.Transfers.ToList();
-        }
-
+        #region Comentados
         //public AccountMovims GetById(int accountId, int userId)
         //{
         //    if (_context.Accounts == null || _context.Transactions == null)
@@ -135,12 +134,13 @@
         //    _context.Accounts.Update(account);
         //    _context.SaveChanges();
         //}
-        
+
         /*public void Delete(int id)
         {
             var account = GetAccount(id);
             _context.Accounts.Remove(account);
             _context.SaveChanges();
         }*/
+        #endregion
     }
 }

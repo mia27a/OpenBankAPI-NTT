@@ -15,27 +15,31 @@ namespace APIBank.Helpers
             //_logger = logger;
         }
 
-        public async Task Invoke(HttpContext context)
+        public async Task Invoke(HttpContext httpContext)
         {
             try
             {
-                await _next(context);
+                await _next(httpContext);
             }
-            catch(Exception error)
+            catch (Exception error)
             {
-                var response = context.Response;
-                response.ContentType = "application/json";
+                httpContext.Response.ContentType = "application/json";
 
-                response.StatusCode = error switch
+                switch (error)
                 {
-                    AppException => (int)HttpStatusCode.BadRequest,// custom application error
+                    case AppException:
+                        httpContext.Response.StatusCode = (int)HttpStatusCode.BadRequest; // custom application error
+                        break;
+                    case KeyNotFoundException:
+                        httpContext.Response.StatusCode = (int)HttpStatusCode.NotFound; // not found error
+                        break;
+                    default:
+                        httpContext.Response.StatusCode = (int)HttpStatusCode.InternalServerError; // unhandled error
+                        break;
+                }
 
-                    KeyNotFoundException => (int)HttpStatusCode.NotFound,// not found error
-
-                    _ => (int)HttpStatusCode.InternalServerError,// unhandled error
-                };
                 var result = JsonSerializer.Serialize(new { message = error?.Message });
-                await response.WriteAsync(result);
+                await httpContext.Response.WriteAsync(result);
             }
         }
     }

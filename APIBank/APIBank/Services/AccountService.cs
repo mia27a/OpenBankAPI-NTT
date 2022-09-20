@@ -1,20 +1,16 @@
 ﻿using APIBank.Models.Accounts;
 using APIBank.Models.Transactions;
+using APIBank.Services.Interfaces;
 
 namespace APIBank.Services
 {
     public class AccountService : IAccountService
     {
-        private postgresContext _context;
-        private readonly IMapper _mapper;
+        private readonly PostgresContext _context;
 
-        public AccountService(postgresContext context, IMapper mapper)
-        {
-            _context = context;
-            _mapper = mapper;
-        }
+        public AccountService(PostgresContext context) => _context = context;
 
-        public void Create(CreateAccountRequest model)
+        public void Create(CreateAccountRequest model, int userId)
         {
             if (_context.Accounts == null || _context.Transactions == null)
             {
@@ -23,33 +19,25 @@ namespace APIBank.Services
 
             using (var transaction = _context.Database.BeginTransaction())
             {
-                try
-                {
-                    var account = new Account();
-                    var movim = new Transaction();
+                var account = new Account();
+                var movim = new Transaction();
 
-                    account.UserId = model.UserId;
-                    account.Currency = model.Currency;
-                    account.Balance = model.Amount;
+                account.UserId = userId;
+                account.Currency = model.Currency;
+                account.Balance = model.Amount;
 
-                    _context.Accounts.Add(account);
-                    _context.SaveChanges();
+                _context.Accounts.Add(account);
+                _context.SaveChanges();
 
-                    movim.AccountId = account.Id;
-                    movim.Amount = model.Amount;
-                    movim.Balance = account.Balance;
+                movim.AccountId = account.Id;
+                movim.Amount = model.Amount;
+                movim.Balance = account.Balance;
 
-                    _context.Transactions.Add(movim);
-                    _context.SaveChanges();
+                _context.Transactions.Add(movim);
+                _context.SaveChanges();
 
-                    // Commit transaction if all commands succeed, transaction will auto-rollback
-                    // when disposed if either commands fails
-                    transaction.Commit();
-                }
-                catch (Exception)
-                {
-                    //TODO
-                }
+                // Commit transaction if all commands succeed, transaction will auto-rollback when disposed if either commands fails
+                transaction.Commit();
             }
         }
 
@@ -59,18 +47,17 @@ namespace APIBank.Services
             {
                 throw new KeyNotFoundException("Table 'Accounts' not found");
             }
-            var accounts = _context.Accounts.Where(u => u.UserId == userId).Select(u => new AccountRe
+
+            return _context.Accounts.Where(u => u.UserId == userId).Select(u => new AccountRe
             {
                 Balance = u.Balance,
                 CreatedAt = u.CreatedAt,
                 Currency = u.Currency,
                 Id = u.Id
             }).ToList();
-
-            return accounts;
         }
 
-        public AccountMovims GetById(int accountId)
+        public AccountMovims GetById(int accountId, int userId)
         {
             if (_context.Accounts == null || _context.Transactions == null)
             {
@@ -79,7 +66,7 @@ namespace APIBank.Services
 
             var account = _context.Accounts
                             .Include(a => a.Transactions)
-                            .Where(a => a.Id == accountId)
+                            .Where(a => a.Id == accountId && a.UserId == userId)
                             .Select(a => new AccountMovims
                             {
                                 Account = new AccountRe
@@ -99,104 +86,38 @@ namespace APIBank.Services
 
             if (account == null)
             {
-                throw new KeyNotFoundException("Account not found");
+                throw new BadHttpRequestException("Account does not exist or does not belong to this user.");
             }
-
 
             return account;
         }
 
-        #region GetById Attempts
-        /* public List<AccountRe> GetById(int id, int userId)
-        {
-            if (_context.Accounts == null)
-            {
-                throw new KeyNotFoundException("Table 'Accounts' not found");
-            }
-
-            var account = _context.Accounts.Where(a => a.Id == id && a.UserId == userId);
-
-            *//*.Find(id);*//*
-            if (account == null)
-            {
-                throw new KeyNotFoundException("Account not found");
-            }
-
-
-            return _mapper.Map<List<AccountRe>>(account);
-        }*/
-
-        //public List<AccountMovims> GetById(int accountId, int userId)
+        #region Comentados
+        //public Account Update(int id, UpdateAccountRequest model)
         //{
-        //    List<AccountMovims> result = new List<AccountMovims>();
-
-        //    if (_context.Accounts == null && _context.Transactions == null)
+        //    if (_context.Accounts == null)
         //    {
-        //        throw new KeyNotFoundException("Table not found");
+        //        throw new KeyNotFoundException("Table 'Accounts' not found");
         //    }
-
-        //    var account = _context.Accounts.Where(a => a.Id == accountId && a.UserId == userId).Select(a =>
-        //        new AccountRe
-        //        {
-        //            Balance = a.Balance,
-        //            Currency = a.Currency,
-        //            CreatedAt = a.CreatedAt,
-        //            Id = a.Id
-
-        //        }).SingleOrDefault();
-
-        //    var transactions = _context.Transactions.Where(t => t.AccountId == accountId).Select(t =>
-        //        new Movim
-        //        {
-        //            Amount = t.Amount,
-        //            CreatedAt = t.CreatedAt
-        //        }
-        //        ).ToArray();
-
-        //    AccountMovims accMov = new AccountMovims
-        //    {
-        //        Account = account,
-        //        Movims = transactions
-        //    };
-
-        //    result.Add(accMov);
-
-        //    /*.Find(id);*/
+        //    var account = _context.Accounts.Find(id);
         //    if (account == null)
         //    {
         //        throw new KeyNotFoundException("Account not found");
         //    }
 
-
-        //    return result;
+        //    _mapper.Map(model, account);
+        //    _context.Accounts.Update(account);
+        //    _context.SaveChanges();
+        //    return account;
         //}
-        #endregion
 
-
-        public Account Update(int id, UpdateAccountRequest model)
-        {
-            //USERS
-            if (_context.Accounts == null)
-            {
-                throw new KeyNotFoundException("Table 'Accounts' not found");
-            }
-            var account = _context.Accounts.Find(id);
-            if (account == null)
-            {
-                throw new KeyNotFoundException("Account not found");
-            }
-
-            _mapper.Map(model, account);
-            _context.Accounts.Update(account);
-            _context.SaveChanges();
-            return account;
-        }
-
+        
         /*public void Delete(int id)
         {
             var account = GetAccount(id);
             _context.Accounts.Remove(account);
             _context.SaveChanges();
         }*/
+        #endregion
     }
 }

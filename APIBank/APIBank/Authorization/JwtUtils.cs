@@ -9,9 +9,9 @@ namespace APIBank.Authorization
     public class JwtUtils : IJwtUtils
     {
         private readonly AppSettings _appSettings;
-        private readonly postgresContext _context;
+        private readonly PostgresContext _context;
 
-        public JwtUtils(IOptions<AppSettings> appSettings, postgresContext context)
+        public JwtUtils(IOptions<AppSettings> appSettings, PostgresContext context)
         {
             _appSettings = appSettings.Value;
             _context = context;
@@ -75,7 +75,7 @@ namespace APIBank.Authorization
         {
             return new RefreshToken
             {
-                Token = GetUniqueRefreshToken(),
+                RefToken = GetUniqueRefreshToken(),
                 Expires = DateTime.UtcNow.AddDays(7),
                 Created = DateTime.UtcNow,
                 CreatedByIp = ipAddress
@@ -87,8 +87,8 @@ namespace APIBank.Authorization
             var token = Convert.ToBase64String(RandomNumberGenerator.GetBytes(64));
             // check if token is unique in db
             var tokenIsUnique = !_context.Users.Any(user => user
-                .RefreshTokens
-                .Any(reftoken => reftoken.Token == token));
+                .RefreshTokenCollection
+                .Any(reftoken => reftoken.RefToken == token));
 
             if (!tokenIsUnique)
             {

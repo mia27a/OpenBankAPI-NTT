@@ -1,14 +1,8 @@
-﻿using APIBank.ModelEntities;
-
-namespace APIBank.Helpers
+﻿namespace APIBank.Helpers
 {
-    public partial class postgresContext : DbContext
+    public partial class PostgresContext : DbContext
     {
-        public postgresContext(DbContextOptions<postgresContext> options)
-            : base(options)
-        {
-
-        }
+        public PostgresContext(DbContextOptions<PostgresContext> options) : base(options) { }
 
         public virtual DbSet<Account> Accounts { get; set; } = null!;
         public virtual DbSet<RefreshToken> RefreshTokens { get; set; } = null!;
@@ -76,11 +70,11 @@ namespace APIBank.Helpers
                     .HasColumnType("timestamp without time zone")
                     .HasColumnName("expires");
 
-                //entity.Property(e => e.IsActive).HasColumnName("is_active");
+                entity.Property(e => e.IsActive).HasColumnName("is_active");
 
-                //entity.Property(e => e.IsExpired).HasColumnName("is_expired");
+                entity.Property(e => e.IsExpired).HasColumnName("is_expired");
 
-                //entity.Property(e => e.IsRevoked).HasColumnName("is_revoked");
+                entity.Property(e => e.IsRevoked).HasColumnName("is_revoked");
 
                 entity.Property(e => e.ReasonRevoked)
                     .HasMaxLength(200)
@@ -98,14 +92,14 @@ namespace APIBank.Helpers
                     .HasMaxLength(200)
                     .HasColumnName("revoked_by_ip");
 
-                entity.Property(e => e.Token)
+                entity.Property(e => e.RefToken)
                     .HasMaxLength(254)
                     .HasColumnName("token");
 
                 entity.Property(e => e.UserId).HasColumnName("user_id");
 
                 entity.HasOne(d => d.User)
-                    .WithMany(p => p.RefreshTokens)
+                    .WithMany(p => p.RefreshTokenCollection)
                     .HasForeignKey(d => d.UserId)
                     .OnDelete(DeleteBehavior.ClientSetNull)
                     .HasConstraintName("refresh_token_user_id_fkey");
