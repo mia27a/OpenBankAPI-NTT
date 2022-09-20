@@ -8,7 +8,7 @@ namespace APIBank.Services
     {
         private PostgresContext _context;
         private IJwtUtils _jwtUtils;
-        private readonly AppSettings _appSettings;
+        private readonly AppSettings _appSettings; // usado para o Remove Old Refresh Tokens
         private readonly IMapper _mapper;
 
         public UserService(PostgresContext context, IJwtUtils jwtUtils, IOptions<AppSettings> appSettings, IMapper mapper)
@@ -48,6 +48,43 @@ namespace APIBank.Services
             _context.SaveChanges();
 
             return new LoginResponse(user, jwtToken, refreshToken.RefToken);
+        }
+
+        public LoginResponse RefreshToken(string token, string ipAddress)
+        {
+            var user = GetUserByRefreshToken(token);
+            var refreshToken = user.RefreshTokenCollection.SingleOrDefault(x => x.RefToken == token);
+
+            if (refreshToken?.IsRevoked == true)
+            {
+                // revoke all descendant tokens in case this token has been compromised
+                RevokeDescendantRefreshTokens(refreshToken, user, ipAddress, $"Attempted reuse of revoked ancestor token: {token}");
+                _context.Update(user);
+                _context.SaveChanges();
+            }
+
+            if (refreshToken?.IsActive == false)
+            {
+                throw new AppException("Invalid token"); // CustomBad Request
+            }
+
+            // replace old refresh token with a new one (rotate token)
+            var newRefreshToken = RotateRefreshToken(refreshToken, ipAddress);
+            user.RefreshTokenCollection.Add(newRefreshToken);
+
+            #region RemoveOldRefreshTokens to be implemented
+            // remove old refresh tokens from user
+            //RemoveOldRefreshTokens(user);
+            #endregion
+
+            // save changes to db
+            _context.Update(user);
+            _context.SaveChanges();
+
+            // generate new jwt
+            var jwtToken = _jwtUtils.GenerateToken(user);
+
+            return new LoginResponse(user, jwtToken, newRefreshToken.RefToken);
         }
 
         public void Create(CreateUserRequest model)
@@ -139,49 +176,14 @@ namespace APIBank.Services
             return query;
         }
 
-        #region Future Implementations: RefreshJwtToken, RevokeToken 
-        //public LoginResponse RefreshToken(string token, string ipAddress)
-        //{
-        //    var user = GetUserByRefreshToken(token);
-        //    var refreshToken = user.RefreshTokenCollection.SingleOrDefault(x => x.RefToken == token);
 
-        //    if (refreshToken?.IsRevoked == true) //if(refreshToken?.Revoked != null)
-        //    {
-        //        // revoke all descendant tokens in case this token has been compromised
-        //        RevokeDescendantRefreshTokens(refreshToken, user, ipAddress, $"Attempted reuse of revoked ancestor token: {token}");
-        //        _context.Update(user);
-        //        _context.SaveChanges();
-        //    }
-
-        //    if (refreshToken?.IsActive == false) //if(refreshToken?.Revoked != null && DateTime.UtcNow >= refreshToken.Expires)
-        //    {
-        //        throw new AppException("Invalid token"); // CustomBad Request
-        //    }
-
-        //    // replace old refresh token with a new one (rotate token)
-        //    var newRefreshToken = RotateRefreshToken(refreshToken, ipAddress);
-        //    user.RefreshTokenCollection.Add(newRefreshToken);
-
-        //    // remove old refresh tokens from user
-        //    RemoveOldRefreshTokens(user);
-
-        //    // save changes to db
-        //    _context.Update(user);
-        //    _context.SaveChanges();
-
-        //    // generate new jwt
-        //    var jwtToken = _jwtUtils.GenerateToken(user);
-
-        //    return new LoginResponse(user, jwtToken, newRefreshToken.RefToken);
-        //}
-
+        #region Future Implementations: RevokeToken
         //public void RevokeToken(string token, string ipAddress)
         //{
         //    var user = GetUserByRefreshToken(token);
         //    RefreshToken refreshToken = user.RefreshTokenCollection.Single(x => x.RefToken == token);
 
         //    if (!refreshToken.IsActive)
-        //    //if(refreshToken.Revoked != null && DateTime.UtcNow >= refreshToken.Expires)
         //    {
         //        throw new AppException("Invalid token"); // Custom BadRequest
         //    }
@@ -208,24 +210,55 @@ namespace APIBank.Services
             return user;
         }
 
-        #region Future Implementations - Helper Methods: GetUserByRefreshToken, RotateRefreshToken, RemoveOldRefreshTokens, RevokeDescendantRefreshTokens, RevokeRefreshToken
-        //private User GetUserByRefreshToken(string token)
-        //{
-        //    var user = _context.Users.SingleOrDefault(u => u.RefreshTokenCollection.Any(t => t.RefToken == token));
+        private User GetUserByRefreshToken(string token)
+        {
+            var user = _context.Users.SingleOrDefault(u => u.RefreshTokenCollection.Any(t => t.RefToken == token));
 
-        //    if(user == null)
-        //        throw new AppException("Invalid token"); // Custom BadRequest
+            if (user == null)
+                throw new AppException("Invalid token"); // Custom BadRequest
 
-        //    return user;
-        //}
+            return user;
+        }
 
-        //private RefreshToken RotateRefreshToken(RefreshToken refreshToken, string ipAddress)
-        //{
-        //    var newRefreshToken = _jwtUtils.GenerateRefreshToken(ipAddress);
-        //    RevokeRefreshToken(refreshToken, ipAddress, "Replaced by new token", newRefreshToken.RefToken);
-        //    return newRefreshToken;
-        //}
+        private RefreshToken RotateRefreshToken(RefreshToken refreshToken, string ipAddress)
+        {
+            var newRefreshToken = _jwtUtils.GenerateRefreshToken(ipAddress);
+            RevokeRefreshToken(refreshToken, ipAddress, "Replaced by new token", newRefreshToken.RefToken);
+            return newRefreshToken;
+        }
 
+        private static void RevokeRefreshToken(RefreshToken? token, string ipAddress, string reason = null, string replacedByToken = null)
+        {
+            if (token == null)
+                return;
+
+            token.Revoked = DateTime.UtcNow;
+            token.RevokedByIp = ipAddress;
+            token.ReasonRevoked = reason;
+            token.ReplacedByToken = replacedByToken;
+        }
+
+        private void RevokeDescendantRefreshTokens(RefreshToken refreshToken, User user, string ipAddress, string reason)
+        {
+            // recursively traverse the refresh token chain and ensure all descendants are revoked
+            if (!string.IsNullOrEmpty(refreshToken.ReplacedByToken))
+            {
+                var childToken = user.RefreshTokenCollection.SingleOrDefault(x => x.RefToken == refreshToken.ReplacedByToken);
+
+                //if(childToken.Revoked == null && !(DateTime.UtcNow >= childToken.Expires))
+                if (childToken.IsActive)
+                {
+                    RevokeRefreshToken(childToken, ipAddress, reason);
+                }
+                else
+                {
+                    RevokeDescendantRefreshTokens(childToken, user, ipAddress, reason);
+                }
+            }
+        }
+
+
+        #region Future Implementations - Helper Methods: RemoveOldRefreshTokens
         //private void RemoveOldRefreshTokens(User user) //TESTAR!!!!!!!!!!!!!!!!!!!!!!!!
         //{
         //    // remove old inactive refresh tokens from user based on Remover in app settings
@@ -240,35 +273,6 @@ namespace APIBank.Services
         //    //}
         //}
 
-
-        //private void RevokeDescendantRefreshTokens(RefreshToken refreshToken, User user, string ipAddress, string reason)
-        //{
-        //    // recursively traverse the refresh token chain and ensure all descendants are revoked
-        //    if(!string.IsNullOrEmpty(refreshToken.ReplacedByToken))
-        //    {
-        //        var childToken = user.RefreshTokenCollection.SingleOrDefault(x => x.RefToken == refreshToken.ReplacedByToken);
-        //        
-        //        //if(childToken.Revoked == null && !(DateTime.UtcNow >= childToken.Expires))
-        //        if (childToken.IsActive)
-        //        {
-        //            RevokeRefreshToken(childToken, ipAddress, reason);
-        //        } else
-        //        {
-        //            RevokeDescendantRefreshTokens(childToken, user, ipAddress, reason);
-        //        }
-        //    }
-        //}
-
-        //private static void RevokeRefreshToken(RefreshToken? token, string ipAddress, string reason = null, string replacedByToken = null)
-        //{
-        //    if(token == null)
-        //        return;
-
-        //    token.Revoked = DateTime.UtcNow;
-        //    token.RevokedByIp = ipAddress;
-        //    token.ReasonRevoked = reason;
-        //    token.ReplacedByToken = replacedByToken;
-        //}
         #endregion
     }
 }

@@ -10,7 +10,7 @@
         void Delete(int id);
         public IQueryable<RefreshToken> GetAllUserRefreshTokens(int id);
 
-        //LoginResponse RefreshToken(string token, string ipAddress);
+        LoginResponse RefreshToken(string token, string ipAddress);
         //void RevokeToken(string token, string ipAddress);
     }
 }

@@ -1,6 +1,7 @@
 ﻿using APIBank.Models.Users.Requests;
 using APIBank.Models.Users.Responses;
 using APIBank.Services.Interfaces;
+using NuGet.Protocol.Plugins;
 using System.Security.Claims;
 
 namespace APIBank.Controllers
@@ -42,6 +43,19 @@ namespace APIBank.Controllers
             return Created("", new { message = "User created successfully" });
         }
 
+        [AllowAnonymous]
+        [HttpPost("refreshToken")]
+        [ProducesResponseType(typeof(LoginResponse), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(string), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(string), StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(typeof(string), StatusCodes.Status500InternalServerError)]
+        public IActionResult RefreshToken()
+        {
+            var refreshToken = Request.Cookies["refreshToken"];
+            var response = _userService.RefreshToken(refreshToken, IpAddress());
+            SetTokenCookie(response.RefreshToken);
+            return Ok(response);
+        }
 
         //[HttpGet("GetAll")]
         //public IActionResult GetAll()
@@ -74,7 +88,7 @@ namespace APIBank.Controllers
         //    return Ok(new { message = "User deleted successfully" });
         //}
 
-        
+
         //[HttpGet("{id}/refresh-tokens")]
         //public IActionResult GetRefreshTokens(int id)
         //{
@@ -87,18 +101,7 @@ namespace APIBank.Controllers
         //}
 
 
-        #region Future Implementations: RefreshJwtToken, RevokeToken
-
-        //[AllowAnonymous]
-        //[HttpPost("refreshToken")]
-        //public IActionResult RefreshToken()
-        //{
-        //    var refreshToken = Request.Cookies["refreshToken"];
-        //    var response = _userService.RefreshToken(refreshToken, IpAddress());
-        //    SetTokenCookie(response.RefreshToken);
-        //    return Ok(response);
-        //}
-
+        #region Future Implementations: RevokeToken
         //[HttpPost("revoke-token")]
         //public IActionResult RevokeToken(RevokeTokenRequest model)
         //{
