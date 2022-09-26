@@ -1,6 +1,6 @@
 namespace APIBank.Models.Requests
 {
-    public class CreateUserRequest
+    public class UserCreateRequest
     {
         [Required]
         [EmailAddress]

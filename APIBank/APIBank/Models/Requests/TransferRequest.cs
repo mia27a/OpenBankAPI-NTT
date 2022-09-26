@@ -1,4 +1,4 @@
-﻿namespace APIBank.Models.Transfers.Requests
+﻿namespace APIBank.Models.Requests
 {
     public class TransferRequest
     {

@@ -1,5 +1,4 @@
-﻿using APIBank.Models.Accounts;
-using APIBank.Models.Transactions;
+﻿using APIBank.Models.Responses;
 using APIBank.Services.Interfaces;
 
 namespace APIBank.Services
@@ -7,13 +6,19 @@ namespace APIBank.Services
     public class AccountService : IAccountService
     {
         private readonly PostgresContext _context;
+        private readonly ILogger<AccountService> _logger;
 
-        public AccountService(PostgresContext context) => _context = context;
+        public AccountService(PostgresContext context, ILogger<AccountService> logger)
+        {
+            _context = context;
+            _logger = logger;
+        }
 
-        public void Create(CreateAccountRequest model, int userId)
+        public AccountRequestResponse Create(AccountCreateRequest model, int userId)
         {
             if (_context.Accounts == null || _context.Transactions == null)
             {
+                _logger.LogInformation("Error creating account:");
                 throw new KeyNotFoundException("A table you are trying to access was not found");
             }
 
@@ -38,17 +43,25 @@ namespace APIBank.Services
 
                 // Commit transaction if all commands succeed, transaction will auto-rollback when disposed if either commands fails
                 transaction.Commit();
+
+                return new AccountRequestResponse()
+                {
+                    Balance = account.Balance,
+                    CreatedAt = DateTime.UtcNow,
+                    Currency = account.Currency,
+                    Id = account.Id,
+                };
             }
         }
 
-        public List<AccountRe> GetAll(int userId)
+        public List<AccountRequestResponse> GetAll(int userId)
         {
             if (_context.Accounts == null)
             {
                 throw new KeyNotFoundException("Table 'Accounts' not found");
             }
 
-            return _context.Accounts.Where(u => u.UserId == userId).Select(u => new AccountRe
+            return _context.Accounts.Where(u => u.UserId == userId).Select(u => new AccountRequestResponse
             {
                 Balance = u.Balance,
                 CreatedAt = u.CreatedAt,
@@ -69,7 +82,7 @@ namespace APIBank.Services
                             .Where(a => a.Id == accountId && a.UserId == userId)
                             .Select(a => new AccountMovims
                             {
-                                Account = new AccountRe
+                                Account = new AccountRequestResponse
                                 {
                                     Balance = a.Balance,
                                     Currency = a.Currency,
@@ -86,7 +99,7 @@ namespace APIBank.Services
 
             if (account == null)
             {
-                throw new BadHttpRequestException("Account does not exist or does not belong to this user.");
+                throw new AppException("Source Account does not exist or does not belong to this user.");
             }
 
             return account;
@@ -111,7 +124,7 @@ namespace APIBank.Services
         //    return account;
         //}
 
-        
+
         /*public void Delete(int id)
         {
             var account = GetAccount(id);

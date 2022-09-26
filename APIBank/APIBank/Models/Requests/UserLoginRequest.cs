@@ -1,6 +1,6 @@
 namespace APIBank.Models.Requests
 {
-    public class LoginRequest
+    public class UserLoginRequest
     {
         [Required]
         [MinLength(8)]

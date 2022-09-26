@@ -1,5 +1,6 @@
 using APIBank.Services.Interfaces;
 using Microsoft.OpenApi.Models;
+using Serilog;
 using System.Text.Json.Serialization;
 
 namespace APIBank
@@ -21,6 +22,10 @@ namespace APIBank
                     options.JsonSerializerOptions.DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull;
                 });
 
+                //Configure Logger
+                Log.Logger = new LoggerConfiguration().MinimumLevel.Debug().WriteTo.Console().WriteTo.File("Logger/APIBank-Logger.txt", rollingInterval: RollingInterval.Day).CreateLogger();
+                builder.Host.UseSerilog();
+
                 // configure auto mapper
                 bServices.AddAutoMapper(typeof(Program));
 
@@ -40,6 +45,7 @@ namespace APIBank
                 // configure DI for application services
                 bServices.AddScoped<IJwtUtils, JwtUtils>();
                 bServices.AddScoped<IUserService, UserService>();
+                bServices.AddScoped<IUserPersistence, UserPersistence>();
                 bServices.AddScoped<IAccountService, AccountService>();
                 bServices.AddScoped<ITransferService, TransferService>();
 

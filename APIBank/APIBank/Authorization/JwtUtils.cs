@@ -17,15 +17,19 @@ namespace APIBank.Authorization
             _context = context;
         }
 
-        public string GenerateToken(User user)
+        public string GenerateToken(User user, RefreshToken refToken)//AQUI!
         {
             // generate token and set number of minutes valid
             var tokenHandler = new JwtSecurityTokenHandler();
             var secretKey = Encoding.ASCII.GetBytes(_appSettings.Secret);
             var tokenDescriptor = new SecurityTokenDescriptor
             {
-                Subject = new ClaimsIdentity(new[] { new Claim("id", user.Id.ToString()) }),
-                Expires = DateTime.UtcNow.AddMinutes(55),
+                Subject = new ClaimsIdentity(new[]
+                    {
+                        new Claim("id", user.Id.ToString()),
+                        new Claim("sessionId", refToken.Id.ToString())//AQUI!
+                    }),
+                Expires = DateTime.UtcNow.AddMinutes(1),
                 SigningCredentials =
                     new SigningCredentials(new SymmetricSecurityKey(secretKey), SecurityAlgorithms.HmacSha256Signature)
             };
@@ -44,20 +48,19 @@ namespace APIBank.Authorization
             var secretKey = Encoding.ASCII.GetBytes(_appSettings.Secret);
             try
             {
-                tokenHandler.ValidateToken(
-                    token,
-                    new TokenValidationParameters
-                    {
-                        ValidateIssuerSigningKey = true,
-                        IssuerSigningKey = new SymmetricSecurityKey(secretKey),
+                tokenHandler.ValidateToken( token,
+                                            new TokenValidationParameters
+                                            {
+                                                ValidateIssuerSigningKey = true,
+                                                IssuerSigningKey = new SymmetricSecurityKey(secretKey),
 
-                        ValidateIssuer = false,
-                        ValidateAudience = false,
+                                                ValidateIssuer = false,
+                                                ValidateAudience = false,
 
-                        // set clockskew to zero so tokens expire exactly at token expiration time (instead of 5 minutes later)
-                        ClockSkew = TimeSpan.Zero
-                    },
-                    out SecurityToken validatedToken);
+                                                // set clockskew to zero so tokens expire exactly at token expiration time (instead of 5 minutes later)
+                                                ClockSkew = TimeSpan.Zero
+                                            },
+                                            out SecurityToken validatedToken);
 
                 JwtSecurityToken jwtToken = (JwtSecurityToken)validatedToken;
 

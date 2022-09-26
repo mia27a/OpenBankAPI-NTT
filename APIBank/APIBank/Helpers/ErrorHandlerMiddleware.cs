@@ -7,12 +7,12 @@ namespace APIBank.Helpers
     {
         private readonly RequestDelegate _next;
 
-        //private readonly ILogger _logger;
+        private readonly ILogger _logger;
 
-        public ErrorHandlerMiddleware(RequestDelegate next/*, ILogger<ErrorHandlerMiddleware> logger*/)
+        public ErrorHandlerMiddleware(RequestDelegate next, ILogger<ErrorHandlerMiddleware> logger)
         {
             _next = next;
-            //_logger = logger;
+            _logger = logger;
         }
 
         public async Task Invoke(HttpContext httpContext)
@@ -38,6 +38,7 @@ namespace APIBank.Helpers
                         break;
                 }
 
+                _logger.LogInformation("Global Error was found:");
                 var result = JsonSerializer.Serialize(new { message = error?.Message });
                 await httpContext.Response.WriteAsync(result);
             }

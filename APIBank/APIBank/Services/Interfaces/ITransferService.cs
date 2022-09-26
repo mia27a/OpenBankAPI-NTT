@@ -1,7 +1,4 @@
-﻿using APIBank.Models.Accounts;
-using APIBank.Models.Transfers.Requests;
-
-namespace APIBank.Services.Interfaces
+﻿namespace APIBank.Services.Interfaces
 {
     public interface ITransferService
     {

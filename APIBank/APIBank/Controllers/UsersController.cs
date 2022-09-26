@@ -1,8 +1,6 @@
-﻿using APIBank.Models.Users.Requests;
-using APIBank.Models.Users.Responses;
+﻿using APIBank.Models.MyRequestResponses;
 using APIBank.Services.Interfaces;
-using NuGet.Protocol.Plugins;
-using System.Security.Claims;
+using Microsoft.IdentityModel.Tokens;
 
 namespace APIBank.Controllers
 {
@@ -13,10 +11,7 @@ namespace APIBank.Controllers
     {
         private readonly IUserService _userService;
 
-        public UsersController(IUserService userService)
-        {
-            _userService = userService;
-        }
+        public UsersController(IUserService userService) { _userService = userService; }
 
         [AllowAnonymous]
         [HttpPost("Login")]
@@ -24,7 +19,7 @@ namespace APIBank.Controllers
         [ProducesResponseType(typeof(string), StatusCodes.Status400BadRequest)]
         [ProducesResponseType(typeof(string), StatusCodes.Status401Unauthorized)]
         [ProducesResponseType(typeof(string), StatusCodes.Status500InternalServerError)]
-        public IActionResult Login(LoginRequest model)
+        public IActionResult Login(UserLoginRequest model)
         {
             var response = _userService.Login(model, IpAddress());
             SetTokenCookie(response.RefreshToken);
@@ -34,13 +29,13 @@ namespace APIBank.Controllers
 
         [AllowAnonymous]
         [HttpPost("Create")]
-        [ProducesResponseType(typeof(CreateUserResponse), StatusCodes.Status201Created)]
+        [ProducesResponseType(typeof(string), StatusCodes.Status201Created)]
         [ProducesResponseType(typeof(string), StatusCodes.Status400BadRequest)]
         [ProducesResponseType(typeof(string), StatusCodes.Status500InternalServerError)]
-        public IActionResult Create(CreateUserRequest model)
+        public IActionResult Create(UserCreateRequest model)
         {
             _userService.Create(model);
-            return Created("", new { message = "User created successfully" });
+            return Created(string.Empty, new { message = "User created successfully" });
         }
 
         [AllowAnonymous]
@@ -89,49 +84,44 @@ namespace APIBank.Controllers
         //}
 
 
-        //[HttpGet("{id}/refresh-tokens")]
-        //public IActionResult GetRefreshTokens(int id)
-        //{
-        //    var userRefreshTokens = _userService.GetAllUserRefreshTokens(id);
-        //    return Ok(userRefreshTokens);
-        //    #region OldVersion
-        //    //var user = _userService.GetById(id);
-        //    //return Ok(user.RefreshTokenCollection);
-        //    #endregion
-        //}
+        [HttpGet("{id}/refresh-tokens")]
+        public IActionResult GetRefreshTokens(int id)
+        {
+            RefreshToken refToken = _userService.GetRefreshTokenById(GetSessionIdFromClaim());
+            if (!refToken.IsActive)
+                return Unauthorized();
 
+            var userRefreshTokens = _userService.GetAllUserRefreshTokens(id);
+            return Ok(userRefreshTokens);
+            #region OldVersion
+            //var user = _userService.GetById(id);
+            //return Ok(user.RefreshTokenCollection);
+            #endregion
+        }
 
-        #region Future Implementations: RevokeToken
-        //[HttpPost("revoke-token")]
-        //public IActionResult RevokeToken(RevokeTokenRequest model)
-        //{
-        //    // accept refresh token in request body or cookie
-        //    var token = model.Token != null ? model.Token : Request.Cookies["refreshToken"];
+        [HttpPost("Logout")]
+        public IActionResult Logout(/*UserRevokeTokenRequest model*/)
+        {
+            RefreshToken refToken = _userService.GetRefreshTokenById(GetSessionIdFromClaim());
+            if (!refToken.IsActive)
+                return Unauthorized();
 
-        //    if (string.IsNullOrEmpty(token))
-        //    {     //throw new AppException? instead of BadRequest
-        //        return BadRequest(new
-        //        {
-        //            message = "Token is required"
-        //        });
-        //    }
+            // accept refresh token in request body or cookie
+            var token = /*!model.RefToken.IsNullOrEmpty() ? model.RefToken :*/ Request.Cookies["refreshToken"];
 
-        //    _userService.RevokeToken(token, IpAddress());
-        //    return Ok(new { message = "Token revoked" });
-        //}
-        #endregion
+            if (string.IsNullOrEmpty(token))
+                return BadRequest(new { message = "Token is required" });
 
+            _userService.RevokeToken(token, IpAddress());
+            return Ok(new { message = "Logout Successful" });
+        }
 
         // helper methods
-        private void SetTokenCookie(string token)
+        private void SetTokenCookie(string refToken)
         {
             // append cookie with refresh token to the http response
-            CookieOptions cookieOptions = new()
-            {
-                HttpOnly = true,
-                Expires = DateTime.UtcNow.AddDays(7)
-            };
-            Response.Cookies.Append("refreshToken", token, cookieOptions);
+            CookieOptions cookieOptions = new() { HttpOnly = true, Expires = DateTime.UtcNow.AddDays(7) };
+            Response.Cookies.Append("refreshToken", refToken, cookieOptions);
         }
 
         private string IpAddress()

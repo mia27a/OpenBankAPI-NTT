@@ -1,6 +1,6 @@
 using System.Text.Json.Serialization;
 
-namespace APIBank.Models.Users.Responses
+namespace APIBank.Models.MyRequestResponses
 {
     public class LoginResponse
     {
@@ -23,7 +23,7 @@ namespace APIBank.Models.Users.Responses
         [Required]
         public DateTime PasswordChangedAt { get; set; }
 
-        public string Token { get; set; }
+        public string AccessToken { get; set; }
 
         //TODO
         //[Required]
@@ -43,7 +43,7 @@ namespace APIBank.Models.Users.Responses
             FullName = user.FullName;
             Username = user.Username;
             PasswordChangedAt = user.PasswordChangedAt;
-            Token = token;
+            AccessToken = token;
             RefreshToken = refreshToken;
         }
     }

@@ -1,6 +1,6 @@
-namespace APIBank.Models.Requests
+namespace APIBank.Models.MyRequestResponses
 {
-    public class UpdateRequest
+    public class UserUpdateRequest
     {
         [EmailAddress]
         public string? Email { get; set; }

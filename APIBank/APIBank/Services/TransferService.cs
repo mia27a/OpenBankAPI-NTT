@@ -6,10 +6,12 @@ namespace APIBank.Services
     public class TransferService : ITransferService
     {
         private readonly PostgresContext _context;
+        private readonly ILogger<TransferService> _logger;
 
-        public TransferService(PostgresContext context)
+        public TransferService(PostgresContext context, ILogger<TransferService> logger)
         {
             _context = context;
+            _logger = logger;
         }
 
         public void Create(TransferRequest model)
@@ -39,9 +41,20 @@ namespace APIBank.Services
                 var toAccount = UpdateAccountBalance(movementTo, transfer.Amount);
 
                 if (fromAccount == toAccount)
-                    throw new AppException("You cannot transfer to the same account you are transfering from.");
+                {
+                    _logger.LogInformation("Error while transferring funds:");
+                    throw new AppException("You cannot transfer to the same account you are transferring from.");
+                }
                 if (fromAccount.Currency != toAccount.Currency)
+                {
+                    _logger.LogInformation("Error while transferring funds:");
                     throw new AppException("You can only transfer to accounts using the same currency.");
+                }
+                if (fromAccount.Balance < transfer.Amount)
+                {
+                    _logger.LogInformation("Error updating account balance:");
+                    throw new AppException("Insufficient amount in account to transfer from.");
+                }
 
                 _context.SaveChanges();
 
@@ -52,8 +65,9 @@ namespace APIBank.Services
 
         public List<Transfer> GetAll()
         {
-            if(_context.Transfers == null)
+            if (_context.Transfers == null)
             {
+                _logger.LogInformation("Error getting all user transfers:");
                 throw new KeyNotFoundException("Table 'Transfers' not found");
             }
 
@@ -78,69 +92,15 @@ namespace APIBank.Services
         private Account UpdateAccountBalance(Transaction movement, decimal amount)
         {
             var account = _context.Accounts.Find(movement.AccountId);
-            if (account == null)            
+            if (account == null)
+            {
+                _logger.LogInformation("Error updating account balance:");
                 throw new AppException("Account does not exist.");
-            if (account.Balance < amount)
-                throw new AppException("Insufficient amount in account to transfer from.");
+            }
             
-            account.Balance += movement.Amount;            
+
+            account.Balance += movement.Amount;
             return account;
         }
-
-        #region Comentados
-        //public AccountMovims GetById(int accountId, int userId)
-        //{
-        //    if (_context.Accounts == null || _context.Transactions == null)
-        //    {
-        //        throw new KeyNotFoundException("A table you are trying to access was not found");
-        //    }
-
-        //    var account = _context.Accounts
-        //                    .Include(a => a.Transactions)
-        //                    .Where(a => a.Id == accountId && a.UserId == userId)
-        //                    .Select(a => new AccountMovims
-        //                    {
-        //                        Account = new AccountRe
-        //                        {
-        //                            Balance = a.Balance,
-        //                            Currency = a.Currency,
-        //                            CreatedAt = a.CreatedAt,
-        //                            Id = a.Id
-
-        //                        },
-        //                        Movims = a.Transactions.Select(b => new Movim
-        //                        {
-        //                            Amount = b.Amount,
-        //                            CreatedAt = b.CreatedAt
-        //                        }).ToArray()
-        //                    }).SingleOrDefault();
-
-        //    if (account == null)
-        //    {
-        //        throw new KeyNotFoundException("Account not found");
-        //    }
-
-
-        //    return account;
-        //}
-
-
-        //public void Update(int id, UpdateRequest model)
-        //{
-        //    var account = GetAccount(id);
-
-        //    // copy model to account and save
-        //    _mapper.Map(model, account);
-        //    _context.Accounts.Update(account);
-        //    _context.SaveChanges();
-        //}
-
-        /*public void Delete(int id)
-        {
-            var account = GetAccount(id);
-            _context.Accounts.Remove(account);
-            _context.SaveChanges();
-        }*/
-        #endregion
     }
 }

@@ -37,7 +37,6 @@ C:\Users\mguedesa\OneDrive - NTT DATA EMEAL\Documentos\GitHub\OpenBankAPI-NTT\AP
 C:\Users\mguedesa\OneDrive - NTT DATA EMEAL\Documentos\GitHub\OpenBankAPI-NTT\APIBank\APIBank\bin\Debug\net6.0\MessagePack.Annotations.dll
 C:\Users\mguedesa\OneDrive - NTT DATA EMEAL\Documentos\GitHub\OpenBankAPI-NTT\APIBank\APIBank\bin\Debug\net6.0\Microsoft.AspNetCore.Razor.Language.dll
 C:\Users\mguedesa\OneDrive - NTT DATA EMEAL\Documentos\GitHub\OpenBankAPI-NTT\APIBank\APIBank\bin\Debug\net6.0\Microsoft.Bcl.AsyncInterfaces.dll
-C:\Users\mguedesa\OneDrive - NTT DATA EMEAL\Documentos\GitHub\OpenBankAPI-NTT\APIBank\APIBank\bin\Debug\net6.0\Microsoft.Build.Locator.dll
 C:\Users\mguedesa\OneDrive - NTT DATA EMEAL\Documentos\GitHub\OpenBankAPI-NTT\APIBank\APIBank\bin\Debug\net6.0\Microsoft.CodeAnalysis.AnalyzerUtilities.dll
 C:\Users\mguedesa\OneDrive - NTT DATA EMEAL\Documentos\GitHub\OpenBankAPI-NTT\APIBank\APIBank\bin\Debug\net6.0\Microsoft.CodeAnalysis.dll
 C:\Users\mguedesa\OneDrive - NTT DATA EMEAL\Documentos\GitHub\OpenBankAPI-NTT\APIBank\APIBank\bin\Debug\net6.0\Microsoft.CodeAnalysis.CSharp.dll
@@ -270,3 +269,16 @@ C:\Users\mguedesa\OneDrive - NTT DATA EMEAL\Documentos\GitHub\OpenBankAPI-NTT\AP
 C:\Users\mguedesa\OneDrive - NTT DATA EMEAL\Documentos\GitHub\OpenBankAPI-NTT\APIBank\APIBank\bin\Debug\net6.0\Microsoft.IdentityModel.Abstractions.dll
 C:\Users\mguedesa\OneDrive - NTT DATA EMEAL\Documentos\GitHub\OpenBankAPI-NTT\APIBank\APIBank\bin\Debug\net6.0\BCrypt.Net-Next.dll
 C:\Users\mguedesa\OneDrive - NTT DATA EMEAL\Documentos\GitHub\OpenBankAPI-NTT\APIBank\APIBank\bin\Debug\net6.0\Microsoft.AspNetCore.Authentication.JwtBearer.dll
+C:\Users\mguedesa\OneDrive - NTT DATA EMEAL\Documentos\GitHub\OpenBankAPI-NTT\APIBank\APIBank\bin\Debug\net6.0\Microsoft.Build.dll
+C:\Users\mguedesa\OneDrive - NTT DATA EMEAL\Documentos\GitHub\OpenBankAPI-NTT\APIBank\APIBank\bin\Debug\net6.0\Microsoft.Build.Framework.dll
+C:\Users\mguedesa\OneDrive - NTT DATA EMEAL\Documentos\GitHub\OpenBankAPI-NTT\APIBank\APIBank\bin\Debug\net6.0\Microsoft.Extensions.DependencyModel.dll
+C:\Users\mguedesa\OneDrive - NTT DATA EMEAL\Documentos\GitHub\OpenBankAPI-NTT\APIBank\APIBank\bin\Debug\net6.0\Microsoft.NET.StringTools.dll
+C:\Users\mguedesa\OneDrive - NTT DATA EMEAL\Documentos\GitHub\OpenBankAPI-NTT\APIBank\APIBank\bin\Debug\net6.0\Serilog.dll
+C:\Users\mguedesa\OneDrive - NTT DATA EMEAL\Documentos\GitHub\OpenBankAPI-NTT\APIBank\APIBank\bin\Debug\net6.0\Serilog.AspNetCore.dll
+C:\Users\mguedesa\OneDrive - NTT DATA EMEAL\Documentos\GitHub\OpenBankAPI-NTT\APIBank\APIBank\bin\Debug\net6.0\Serilog.Extensions.Hosting.dll
+C:\Users\mguedesa\OneDrive - NTT DATA EMEAL\Documentos\GitHub\OpenBankAPI-NTT\APIBank\APIBank\bin\Debug\net6.0\Serilog.Extensions.Logging.dll
+C:\Users\mguedesa\OneDrive - NTT DATA EMEAL\Documentos\GitHub\OpenBankAPI-NTT\APIBank\APIBank\bin\Debug\net6.0\Serilog.Formatting.Compact.dll
+C:\Users\mguedesa\OneDrive - NTT DATA EMEAL\Documentos\GitHub\OpenBankAPI-NTT\APIBank\APIBank\bin\Debug\net6.0\Serilog.Settings.Configuration.dll
+C:\Users\mguedesa\OneDrive - NTT DATA EMEAL\Documentos\GitHub\OpenBankAPI-NTT\APIBank\APIBank\bin\Debug\net6.0\Serilog.Sinks.Console.dll
+C:\Users\mguedesa\OneDrive - NTT DATA EMEAL\Documentos\GitHub\OpenBankAPI-NTT\APIBank\APIBank\bin\Debug\net6.0\Serilog.Sinks.Debug.dll
+C:\Users\mguedesa\OneDrive - NTT DATA EMEAL\Documentos\GitHub\OpenBankAPI-NTT\APIBank\APIBank\bin\Debug\net6.0\Serilog.Sinks.File.dll

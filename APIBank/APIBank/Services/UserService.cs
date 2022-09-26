@@ -1,4 +1,4 @@
-﻿using APIBank.ModelEntities;
+﻿using APIBank.Models.MyRequestResponses;
 using APIBank.Services.Interfaces;
 using Microsoft.Extensions.Options;
 
@@ -10,22 +10,24 @@ namespace APIBank.Services
         private IJwtUtils _jwtUtils;
         private readonly AppSettings _appSettings; // usado para o Remove Old Refresh Tokens
         private readonly IMapper _mapper;
+        private readonly IUserPersistence _userPersistence;
 
-        public UserService(PostgresContext context, IJwtUtils jwtUtils, IOptions<AppSettings> appSettings, IMapper mapper)
+        public UserService(PostgresContext context, IJwtUtils jwtUtils, IOptions<AppSettings> appSettings, IMapper mapper, IUserPersistence userPersistence)
         {
             _context = context;
             _jwtUtils = jwtUtils;
             _appSettings = appSettings.Value;
             _mapper = mapper;
+            _userPersistence = userPersistence;
         }
 
-        public LoginResponse Login(LoginRequest model, string ipAddress)
+        public LoginResponse Login(UserLoginRequest model, string ipAddress)
         {
-            User user = _context.Users.SingleOrDefault(x => x.Username == model.Username);
+            User user = _userPersistence.GetUserByUsername(model);
 
             // validate
-            if (user == null || !BCrypt.Net.BCrypt.Verify(model.Password, user.PasswordHash))
-                throw new AppException("Username or password is incorrect"); // CustomBadRequest
+            if (!BCrypt.Net.BCrypt.Verify(model.Password, user.PasswordHash))
+                throw new AppException("Password is incorrect"); // CustomBadRequest
 
             #region Version Without RefreshToken
             //var response = _mapper.Map<LoginResponse>(user);
@@ -33,18 +35,19 @@ namespace APIBank.Services
             //return response;
             #endregion
 
-            // authentication successful so generate jwt and refresh tokens
-            string jwtToken = _jwtUtils.GenerateToken(user);
+            // authentication successful so generate jwt and refresh tokens           
             RefreshToken refreshToken = _jwtUtils.GenerateRefreshToken(ipAddress);
             user.RefreshTokenCollection.Add(refreshToken);
+            _context.SaveChanges();
+            string jwtToken = _jwtUtils.GenerateToken(user, /*AQUI!*/refreshToken);//AQUI!
 
-            #region RemoveOldRefreshTokens to be implemented
-            // remove old refresh tokens from user --- to be implemented
-            //RemoveOldRefreshTokens(user);
-            #endregion
+
+            // remove old refresh tokens from user --- to be implemented correctly!!!
+            RemoveOldRefreshTokens(user);
 
             // save changes to db
             _context.Update(user);
+            _context.Update(refreshToken);
             _context.SaveChanges();
 
             return new LoginResponse(user, jwtToken, refreshToken.RefToken);
@@ -53,48 +56,50 @@ namespace APIBank.Services
         public LoginResponse RefreshToken(string token, string ipAddress)
         {
             var user = GetUserByRefreshToken(token);
-            var refreshToken = user.RefreshTokenCollection.SingleOrDefault(x => x.RefToken == token);
 
-            if (refreshToken?.IsRevoked == true)
+            List<RefreshToken> refreshTokenCollection = GetAllUserRefreshTokens(user.Id).ToList();
+            var refreshToken = refreshTokenCollection.SingleOrDefault(x => x.RefToken == token);
+            //var refreshToken = user.RefreshTokenCollection.SingleOrDefault(x => x.RefToken == token);
+
+            if (refreshToken.IsRevoked)
             {
                 // revoke all descendant tokens in case this token has been compromised
                 RevokeDescendantRefreshTokens(refreshToken, user, ipAddress, $"Attempted reuse of revoked ancestor token: {token}");
                 _context.Update(user);
+                _context.Update(refreshToken);
                 _context.SaveChanges();
             }
 
-            if (refreshToken?.IsActive == false)
+            if (!refreshToken.IsActive)
             {
-                throw new AppException("Invalid token"); // CustomBad Request
+                throw new AppException("Invalid token"); // Custom Bad Request
             }
 
             // replace old refresh token with a new one (rotate token)
             var newRefreshToken = RotateRefreshToken(refreshToken, ipAddress);
             user.RefreshTokenCollection.Add(newRefreshToken);
 
-            #region RemoveOldRefreshTokens to be implemented
-            // remove old refresh tokens from user
-            //RemoveOldRefreshTokens(user);
-            #endregion
+            // remove old refresh tokens from user --- to be implemented correctly!!!
+            RemoveOldRefreshTokens(user);
 
             // save changes to db
             _context.Update(user);
             _context.SaveChanges();
 
             // generate new jwt
-            var jwtToken = _jwtUtils.GenerateToken(user);
+            var jwtToken = _jwtUtils.GenerateToken(user, newRefreshToken); //AQUI!
 
             return new LoginResponse(user, jwtToken, newRefreshToken.RefToken);
         }
 
-        public void Create(CreateUserRequest model)
+        public void Create(UserCreateRequest model)
         {
-            if(_context.Users == null)
+            if (_context.Users == null)
             {
                 throw new KeyNotFoundException("Table 'Users' not found");
             }
             // validate
-            if(_context.Users.Any(x => x.Username == model.Username) || _context.Users.Any(x => x.Email == model.Email))
+            if (_context.Users.Any(x => x.Username == model.Username) || _context.Users.Any(x => x.Email == model.Email))
                 throw new AppException("Username or Email are already taken"); // Custom BadRequest
 
             // map model to new user object
@@ -110,7 +115,7 @@ namespace APIBank.Services
 
         public IEnumerable<User> GetAll()
         {
-            if(_context.Users == null)
+            if (_context.Users == null)
             {
                 throw new KeyNotFoundException("Table 'Users' not found");
             }
@@ -122,16 +127,16 @@ namespace APIBank.Services
             return GetUser(id);
         }
 
-        public void Update(int id, UpdateRequest model)
+        public void Update(int id, UserUpdateRequest model)
         {
             User user = GetUser(id);
 
             // validate
-            if(model.Username != user.Username && _context.Users.Any(x => x.Username == model.Username))
+            if (model.Username != user.Username && _context.Users.Any(x => x.Username == model.Username))
                 throw new AppException("Username '" + model.Username + "' is already taken"); //Custom BadRequest
 
             // hash password if it was entered
-            if(!string.IsNullOrEmpty(model.Password))
+            if (!string.IsNullOrEmpty(model.Password))
                 user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(model.Password);
 
             // copy model to user and save
@@ -177,23 +182,24 @@ namespace APIBank.Services
         }
 
 
-        #region Future Implementations: RevokeToken
-        //public void RevokeToken(string token, string ipAddress)
-        //{
-        //    var user = GetUserByRefreshToken(token);
-        //    RefreshToken refreshToken = user.RefreshTokenCollection.Single(x => x.RefToken == token);
+        public void RevokeToken(string refToken, string ipAddress)
+        {
+            User user = GetUserByRefreshToken(refToken);
+            List<RefreshToken> refreshTokenCollection = GetAllUserRefreshTokens(user.Id).ToList();
+            var refreshtoken = _context.FindAsync<RefreshToken>(refreshTokenCollection.Single(refTokenQuery => refTokenQuery.RefToken == refToken).Id).GetAwaiter().GetResult();
+            //user.RefreshTokenCollection.Single(refTokenQuery => refTokenQuery.RefToken == refToken); // Old Version
 
-        //    if (!refreshToken.IsActive)
-        //    {
-        //        throw new AppException("Invalid token"); // Custom BadRequest
-        //    }
+            if (!refreshtoken.IsActive)
+            {
+                throw new AppException("Invalid token"); // Custom BadRequest
+            }
 
-        //    // revoke token and save
-        //    RevokeRefreshToken(refreshToken, ipAddress, "Revoked without replacement");
-        //    _context.Update(user);
-        //    _context.SaveChanges();
-        //}
-        #endregion
+            // revoke token and save
+            RevokeRefreshToken(refreshtoken, ipAddress, "Revoked without replacement");
+            //_context.Update(user);
+            //_context.Update(refreshtoken);
+            _context.SaveChanges();
+        }
 
 
         //Helper Methods
@@ -210,14 +216,27 @@ namespace APIBank.Services
             return user;
         }
 
-        private User GetUserByRefreshToken(string token)
+        private User GetUserByRefreshToken(string refToken)
         {
-            var user = _context.Users.SingleOrDefault(u => u.RefreshTokenCollection.Any(t => t.RefToken == token));
+            User? user = _context.Users.SingleOrDefault(userQuery => userQuery.RefreshTokenCollection.Any(refTokenQuery => refTokenQuery.RefToken == refToken));
 
             if (user == null)
                 throw new AppException("Invalid token"); // Custom BadRequest
 
             return user;
+        }
+
+        public RefreshToken GetRefreshTokenById(int id)
+        {
+            if (_context.RefreshTokens == null)
+                throw new KeyNotFoundException("Table 'RefreshToken' not found");
+
+            var refreshToken = _context.RefreshTokens.Find(id);
+
+            if (refreshToken == null)
+                throw new KeyNotFoundException("Refresh Token not found");
+
+            return refreshToken;
         }
 
         private RefreshToken RotateRefreshToken(RefreshToken refreshToken, string ipAddress)
@@ -243,9 +262,11 @@ namespace APIBank.Services
             // recursively traverse the refresh token chain and ensure all descendants are revoked
             if (!string.IsNullOrEmpty(refreshToken.ReplacedByToken))
             {
-                var childToken = user.RefreshTokenCollection.SingleOrDefault(x => x.RefToken == refreshToken.ReplacedByToken);
+                List<RefreshToken> childTokenCollection = GetAllUserRefreshTokens(user.Id).ToList();
+                var childToken = childTokenCollection.SingleOrDefault(x => x.RefToken == refreshToken.ReplacedByToken);
+                //var childToken = user.RefreshTokenCollection.SingleOrDefault(x => x.RefToken == refreshToken.ReplacedByToken); // Old Version
 
-                //if(childToken.Revoked == null && !(DateTime.UtcNow >= childToken.Expires))
+
                 if (childToken.IsActive)
                 {
                     RevokeRefreshToken(childToken, ipAddress, reason);
@@ -257,22 +278,19 @@ namespace APIBank.Services
             }
         }
 
+        private void RemoveOldRefreshTokens(User user) //TESTAR!!!!!!!!!!!!!!!!!!!!!!!! Algo não está a funcionar bem...
+        {
+            // remove old inactive refresh tokens from user based on Remover in app settings
 
-        #region Future Implementations - Helper Methods: RemoveOldRefreshTokens
-        //private void RemoveOldRefreshTokens(User user) //TESTAR!!!!!!!!!!!!!!!!!!!!!!!!
-        //{
-        //    // remove old inactive refresh tokens from user based on Remover in app settings
-        //    user.RefreshTokenCollection.RemoveAll(x => !x.IsActive && x.Created.AddDays(_appSettings.RefreshTokenRemover) <= DateTime.UtcNow);
-
-
-        //    //x.Revoked != null && DateTime.UtcNow >= x.Expires
-        //    // remove old inactive refresh tokens from user based on Remover in app settings
-        //    //foreach (var rtoken in user.RefreshTokenCollection.Where(x => !x.IsActive && x.Created.AddDays(_appSettings.RefreshTokenRemover) <= DateTime.UtcNow))
-        //    //{
-        //    //    _context.RefreshTokens.Remove(rtoken);
-        //    //}
-        //}
-
-        #endregion
+            //user.RefreshTokenCollection.RemoveAll(x => !x.IsActive && x.Created.AddDays(_appSettings.RefreshTokenRemover) <= DateTime.UtcNow); //OldVersion with Collection Not Working
+            List<RefreshToken> refreshTokenCollection = GetAllUserRefreshTokens(user.Id).ToList();
+            foreach (var refToken in refreshTokenCollection.Where(x => !x.IsActive && x.Created.AddDays(_appSettings.RefreshTokenRemover) <= DateTime.UtcNow))
+            {
+                {
+                    _context.Remove(refToken);
+                    _context.SaveChanges();
+                }
+            }
+        }
     }
 }

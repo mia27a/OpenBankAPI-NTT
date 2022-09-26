@@ -1,3 +1,5 @@
+using APIBank.Models.MyRequestResponses;
+
 namespace APIBank.Helpers
 {
     public class AutoMapperProfile : Profile
@@ -8,10 +10,10 @@ namespace APIBank.Helpers
             //CreateMap<User, LoginResponse>();
 
             // CreateUserRequest -> User
-            CreateMap<CreateUserRequest, User>();
+            CreateMap<UserCreateRequest, User>();
 
             // UpdateRequest -> User
-            CreateMap<UpdateRequest, User>().ForAllMembers(x => x.Condition((src, dest, prop) =>
+            CreateMap<UserUpdateRequest, User>().ForAllMembers(x => x.Condition((src, dest, prop) =>
                     {
                         // ignore null & empty string properties
                         if (prop == null)
@@ -27,7 +29,7 @@ namespace APIBank.Helpers
                 ));
 
             // CreateAccountRequest -> Account
-            CreateMap<CreateAccountRequest, Account>();
+            CreateMap<AccountCreateRequest, Account>();
         }
     }
 }
