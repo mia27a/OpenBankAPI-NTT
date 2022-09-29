@@ -1,5 +1,4 @@
-﻿using APIBank.Services;
-using APIBank.Services.Interfaces;
+﻿using APIBank.Services.Interfaces;
 
 namespace APIBank.Controllers
 {

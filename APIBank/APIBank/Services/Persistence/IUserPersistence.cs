@@ -1,4 +1,4 @@
-﻿namespace APIBank.Services
+﻿namespace APIBank.Services.Persistence
 {
     public interface IUserPersistence
     {

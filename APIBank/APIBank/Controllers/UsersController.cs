@@ -1,6 +1,5 @@
 ﻿using APIBank.Models.MyRequestResponses;
 using APIBank.Services.Interfaces;
-using Microsoft.IdentityModel.Tokens;
 
 namespace APIBank.Controllers
 {

@@ -1,5 +1,4 @@
-﻿using APIBank.ModelEntities;
-using APIBank.Services.Interfaces;
+﻿using APIBank.Services.Interfaces;
 
 namespace APIBank.Services
 {
@@ -97,7 +96,7 @@ namespace APIBank.Services
                 _logger.LogInformation("Error updating account balance:");
                 throw new AppException("Account does not exist.");
             }
-            
+
 
             account.Balance += movement.Amount;
             return account;

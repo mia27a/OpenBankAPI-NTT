@@ -1,4 +1,5 @@
 using APIBank.Services.Interfaces;
+using APIBank.Services.Persistence;
 using Microsoft.OpenApi.Models;
 using Serilog;
 using System.Text.Json.Serialization;
@@ -15,16 +16,17 @@ namespace APIBank
                 // Add services to the container.
                 bServices.AddDbContext<PostgresContext>();
                 //bServices.AddCors();
-                bServices.AddControllers().AddJsonOptions(options =>
-                {
-                    options.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles;
-                    options.JsonSerializerOptions.WriteIndented = true;
-                    options.JsonSerializerOptions.DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull;
-                });
+                bServices.AddControllers();
+                //.AddJsonOptions(options =>
+                //{
+                //    options.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles;
+                //    options.JsonSerializerOptions.WriteIndented = true;
+                //    options.JsonSerializerOptions.DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull;
+                //}); // para evitar loops nas respostas - eg.: user - accounts - user
 
                 //Configure Logger
-                Log.Logger = new LoggerConfiguration().MinimumLevel.Debug().WriteTo.Console().WriteTo.File("Logger/APIBank-Logger.txt", rollingInterval: RollingInterval.Day).CreateLogger();
-                builder.Host.UseSerilog();
+                Log.Logger = new LoggerConfiguration().MinimumLevel.Debug().WriteTo.Console().WriteTo.File("Logger/APIBank-Logger.txt", rollingInterval: RollingInterval.Day).CreateLogger(); // retirar caminho para app settings
+                //builder.Host.UseSerilog();
 
                 // configure auto mapper
                 bServices.AddAutoMapper(typeof(Program));
@@ -44,10 +46,10 @@ namespace APIBank
 
                 // configure DI for application services
                 bServices.AddScoped<IJwtUtils, JwtUtils>();
-                bServices.AddScoped<IUserService, UserService>();
-                bServices.AddScoped<IUserPersistence, UserPersistence>();
-                bServices.AddScoped<IAccountService, AccountService>();
-                bServices.AddScoped<ITransferService, TransferService>();
+                bServices.AddTransient<IUserService, UserService>();
+                bServices.AddTransient<IUserPersistence, UserPersistence>();
+                bServices.AddTransient<IAccountService, AccountService>();
+                bServices.AddTransient<ITransferService, TransferService>();
 
                 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
                 bServices.AddEndpointsApiExplorer();
@@ -138,11 +140,11 @@ namespace APIBank
                     app.UseSwagger();
                     app.UseSwaggerUI();
                 }
-                else // adicionado de tutorial MS https://docs.microsoft.com/en-us/aspnet/core/data/ef-rp/intro?view=aspnetcore-6.0&tabs=visual-studio
-                {
-                    app.UseDeveloperExceptionPage();
-                    app.UseMigrationsEndPoint();
-                }
+                //else // adicionado de tutorial MS https://docs.microsoft.com/en-us/aspnet/core/data/ef-rp/intro?view=aspnetcore-6.0&tabs=visual-studio
+                //{
+                //    app.UseDeveloperExceptionPage();
+                //    app.UseMigrationsEndPoint();
+                //}
 
                 app.UseHttpsRedirection();
 

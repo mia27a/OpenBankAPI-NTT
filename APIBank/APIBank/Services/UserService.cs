@@ -1,5 +1,6 @@
 ﻿using APIBank.Models.MyRequestResponses;
 using APIBank.Services.Interfaces;
+using APIBank.Services.Persistence;
 using Microsoft.Extensions.Options;
 
 namespace APIBank.Services
