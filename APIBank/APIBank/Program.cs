@@ -38,7 +38,8 @@ namespace APIBank
                 bServices.AddDbContext<PostgresContext>(
                         options =>
                         {
-                            options.UseNpgsql(builder.Configuration.GetConnectionString("DbConnection")); options.EnableSensitiveDataLogging(true);
+                            options.UseNpgsql(builder.Configuration.GetConnectionString("DbConnection")); 
+                            options.EnableSensitiveDataLogging(true);
                         });
 
 
